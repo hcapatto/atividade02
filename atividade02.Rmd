@@ -1,0 +1,153 @@
+---
+title: "Exercício 2"
+author: "Henrique Capatto"
+output: html_document
+---
+
+# Geração de números aleatórios
+
+Execução do segundo exercício proposto
+
+## Método da Inversão
+
+O exercício em questão porpõe gerar números aleatórios que sigam a função de probabilidade:
+  
+$$
+\mathbb{P}(X=k) = \frac{(e^{-\lambda} \lambda ^k )} {k!}, \forall k\in (0,1,2,...)
+$$
+  
+Para gerar números aleatórios de distribuições discretas utilizando o **método da inversão**, precisamos:
+  
+  1. Determinar a função acumulada de $x$;
+$$
+  F_x(u)^{-1}=x_i
+$$
+  2. E Definir $u$, tal que:
+$$
+  F_x(x_{i-1})< u \leq F_x(x)
+$$
+  3. Gerar amostras aleatórias de acordo com uma distribuição uniforme(0,1);
+
+4. Aplicar a função inversa nos números recém-gerados;
+
+
+Porém no caso da distrbuição de Poisson, a fórmula explicita 
+da função inversa não é trivialmente obtida, destarte, dentre diversas 
+formas de realizar a geração de números aleátorios, utilizar-se-á os seguintes
+passos:
+
+
+  $$  
+f(x+1)=\frac{\lambda f(X)} {x+1}; F(x+1)=F(x)+f(x+1)  
+$$
+
+```{r d_rpois2}
+numale = function(lambda){
+
+  exp01=exp(-lambda)
+  
+  i=1
+  
+  contr=0  
+  
+  unif01 <- NULL
+  
+  while(contr!=i){
+    
+    unif01[i]=runif(1)
+    
+    if(prod(unif01) < exp01){
+      
+      contr=i  
+      
+    }else{
+      i=i+1
+    }
+  }
+
+return(i-1)
+}
+
+rpois2 = function(n,lambda){
+  
+Y=replicate(n,numale(lambda))
+
+return (Y)
+
+}
+
+n <- 1e4
+
+lambda <- 10
+
+amostra=rpois2(n,lambda)
+
+maxx=max(amostra)
+```
+
+Comparação entre os gráficos gerados, pelo método proposto e, também pelos valores gerados usando o algortimo interno do software R:
+
+```{r,eval=TRUE}
+#pprob <- dpois(indexp,lambda)
+
+#plot(indexp,pprob*n,type='l',lwd=1.5,col="blue")
+
+hist(amostra,col="antiquewhite2",border="black",xlab="X=k",
+ylab="Frequência",freq=FALSE)
+
+curve(((exp(-lambda)*lambda^x)/factorial(x)),xlim=c(0,maxx),
+lw=1.5,col="darkslategray",type='l',add=TRUE)
+```
+
+```{r,echo=FALSE}
+alpha= .05
+```
+
+O teste se utilizará para validar a hipótese será o Chi-Quadrado de Aderência, possuinte do objetivo de testar a adeuqabilidade de um modelo probabilistico em
+relação a um conjunto de dados observados. Faremos o teste utilizando os quartis téoricos e os orginários da amostra aleatória. A hipótese nula é a de que a amostra segue a distribuição deseja. A alternativa, é a de que não segue.
+
+Definição de $\alpha=$ `r alpha`
+
+OS quartis teóricos desta distribuição são determinados pela pontos em que a função acumulada
+atinge os valores pré-especificada dos quantis(0.25,0.5,0.75).
+
+```{r, results="hide", echo=FALSE,eval=TRUE}
+
+q1=qpois(0.25,lambda)
+
+q2=qpois(0.5,lambda)
+
+q3=qpois(0.75,lambda)
+
+p1=ppois(q1,lambda)
+
+p2=ppois(q2,lambda)
+
+p3=ppois(q3,lambda)
+
+p4=ppois(3*lambda,lambda)
+
+
+```
+
+Os resultados acima são respectivamente, `r q1`, `r q2` e `r q3`.
+
+```{r,results="hide"}
+quartis = c(0,q1,q2,q3,3*lambda)
+
+resTmp = cut(amostra, quartis, include.lowest=TRUE)
+
+obs = as.integer(table(resTmp))
+
+propor=prop.table(table(resTmp))
+
+proporesp = c(p1,p2,p3,p4)
+
+p_valor=chisq.test(cbind(propor, proporesp))[3]
+
+prop.table(table(resTmp))
+```
+
+O p-valor resultante é: `r p_valor` 
+
+Logo, se  p-valor for $<0.05$, rejeitar-se-á a hipótese nula. Caso contrário, não se preterirá.
